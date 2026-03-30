@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Diagnose Feed</title>
+  <style>
+    @font-face {
+      font-family: 'Futura PT';
+      src: url('FuturaCyrillicBook.ttf') format('truetype');
+      font-weight: 400;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Futura PT';
+      src: url('FuturaCyrillicDemi.ttf') format('truetype');
+      font-weight: 600;
+      font-style: normal;
+    }
+
+    @font-face {
+      font-family: 'Futura PT';
+      src: url('FuturaCyrillicHeavy.ttf') format('truetype');
+      font-weight: 800;
+      font-style: normal;
+    }
+
+    body {
+      background-color: whitesmoke;
+      color: white;
+      font-family: 'Futura PT', Arial, Helvetica, sans-serif;
+      font-weight: 400;
+      font-size: 21pt;
+      margin: 0;
+      padding: 0;
+      overscroll-behavior-y: none;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-weight: 600;
+      font-size: 29pt;
+    }
+
+    p {
+      font-size: 21pt;
+    }
+
+    .post {
+      border: 1px solid #444;
+      padding: 10px;
+      margin: 30px auto;
+      /* meer ruimte voor beschrijving */
+      height: 675px;
+      width: 540px;
+      background-color: black;
+      position: relative;
+    }
+
+    .diagnose-tekst {
+      font-weight: 800;
+      font-size: 55pt;
+      color: #e7e3dd;
+    }
+
+    .titleFeed {
+      color: black;
+      text-align: center;
+    }
+
+    .like-img-special {
+      transition: transform 0.3s;
+    }
+
+    .like-img-special:hover {
+      transform: scale(1.1);
+      filter: drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.3));
+    }
+
+    /* Pas hier de achtergrondkleur aan van de beschrijving */
+    .description {
+      width: 540px;
+      margin: 10px auto;
+      padding: 10px;
+      background-color: whitesmoke;
+      /* van #222 naar wit */
+      color: black;
+      /* zwarte tekst */
+      font-size: 18pt;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    /* Slideshow stijlen */
+    .slideshow-container {
+      width: 540px;
+      height: 675px;
+      margin: 30px auto;
+      overflow: hidden;
+      position: relative;
+      background-color: black;
+      border: 1px solid #444;
+      color: white;
+    }
+
+    .slides-track {
+      display: flex;
+      width: 1080px;
+      /* 2 slides van 540px */
+      height: 100%;
+      transition: transform 0.3s ease-out;
+      cursor: grab;
+    }
+
+    .slides-track:active {
+      cursor: grabbing;
+    }
+
+    .slide {
+      width: 540px;
+      height: 100%;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .slide img {
+      max-width: 100%;
+      max-height: 80%;
+      pointer-events: none;
+      /* Voorkomt dat sleep-actie onbedoeld de afbeelding oppakt */
+    }
+
+    #btnGelezenSlideshow {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="meterUI"
+    style="position: fixed; left: 30px; top: 50%; transform: translateY(-50%); height: 33vh; width: 100px; display: none; align-items: center; z-index: 1000;">
+    <div
+      style="writing-mode: vertical-rl; transform: rotate(180deg); margin-right: 15px; font-weight: bold; font-size: 26pt; color: black;">
+      diagnose-overtuiging</div>
+    <div
+      style="display: flex; flex-direction: column; justify-content: flex-end; width: 40px; height: 100%; border: 2px solid white; background-color: rgba(0,0,0,0.5); position: relative;">
+      <div id="meterFill" style="width: 100%; height: 0%; background-color: orange; transition: height 0.5s;"></div>
+      <div id="meterLabel"
+        style="position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); font-weight: bold; font-size: 18pt; color: black; white-space: nowrap;">
+        twijfel</div>
+    </div>
+  </div>
+  <div id="app"></div>
+  <script>
+    const diagnoses = ['Depression', 'ADHD', 'OCD', 'Anxiety', 'Bipolar'];
+    // [AANPASSEN: Tekst inhoud] Hier staan de vaste titels/inhoud per diagnose
+    // [AANPASSEN: Afbeeldingen per diagnose] Vervang de teksten hieronder met de bestandsnamen van de afbeeldingen die je wilt gebruiken voor de posts. 
+    // Zorg dat de afbeeldingen in dezelfde map staan als de code, of gebruik een URL. Je mag er zoveel toevoegen als je wilt.
+    const postsData = {
+      'Depression': ['Post_Depression.png', 'Post2_Depression.png'],
+      'ADHD': ['Post_ADHD.png', 'Post2_ADHD.png'],
+      'OCD': ['Post_OCD.png', 'Post2_OCD.png'],
+      'Anxiety': ['Post_Anxiety.png', 'Post2_Anxiety.png'],
+      'Bipolar': ['Post_Biplor.png', 'Post2_Biploar.png']
+    };
+
+    let foundDokter = false;
+    let foundDesc = false;
+    let foundEarlySpecial = false;
+    let foundFocusSpecial = false;
+
+    function getNegativeEventsCount() {
+      return (foundDokter ? 1 : 0) + (foundDesc ? 1 : 0) + (foundEarlySpecial ? 1 : 0) + (foundFocusSpecial ? 1 : 0);
+    }
+
+    function updateMeter(totalLikesVal = 0, inFocusMode = false) {
+      const meterUI = document.getElementById('meterUI');
+      if (!meterUI) return;
+
+      let percent = 5 + (totalLikesVal * 20);
+      if (inFocusMode) percent += 20;
+      percent -= (getNegativeEventsCount() * 20);
+
+      if (percent < 0) percent = 0;
+      if (percent > 100) percent = 100;
+
+      document.getElementById('meterFill').style.height = percent + '%';
+
+      let label = 'twijfel';
+      if (percent >= 85) label = 'zekerheid';
+      else if (percent >= 40) label = 'herkenning';
+      document.getElementById('meterLabel').textContent = label;
+    }
+
+
+    const topBannerHTML = (showScrollText, showTitle = true, heroText = "Gedachten: \u201cIk voel me slecht\u2026 wat is er mis met mij?\u201d") => `
+      <div style="position: fixed; top: 0; left: 0; width: 100%; background-color: whitesmoke; padding-top: 20px; padding-bottom: 20px; z-index: 1000; display: flex; flex-direction: column; align-items: center;">
+        <div style="width: 80%; height: 372px; border: 1px solid black; display: flex; align-items: center; justify-content: center; background-image: url('https://via.placeholder.com/1200x372?text=Afbeelding'); background-size: cover; background-position: center;">
+           <div style="font-size: 36pt; color: black; text-shadow: 1px 1px 2px white; font-weight: bold; text-align: center;">${heroText}</div>
+        </div>
+        
+        ${showTitle ? `
+          <h1 style="color: black; margin: 20px 0 0 0; font-size: 26pt;">Sociale media</h1>
+          <!-- [AANPASSEN: Tekst als Afbeelding] -->
+          <!-- <img src="sociale_media_titel.png" style="width: 100%; max-width: 400px; margin: 20px 0 0 0;" /> -->
+        ` : ''}
+        ${showScrollText ? `<div style="font-size: 18pt; color: black; margin-top: 5px;">Scroll naar beneden en ontdek de volgende posts.</div>` : ''}
+      </div>
+      <div style="width: 100%; height: ${showScrollText ? '500px' : '480px'};"></div>
+    `;
+
+    function sceneFeed(next) {
+      document.getElementById('meterUI').style.display = 'flex';
+      updateMeter(0, false);
+      const app = document.getElementById('app');
+      app.innerHTML = topBannerHTML(true) + `<div id="feed"></div>`;
+
+      let feedPosts = [];
+      const maxPosts = 10;
+      let likedPosts = {};
+      let totalLikes = 0;
+      let postIdCounter = 0;
+      let focusMode = false;
+      let diagnoseLikeCount = {};
+      diagnoses.forEach(d => diagnoseLikeCount[d] = 0);
+      let lastScroll = window.scrollY || document.documentElement.scrollTop;
+
+      function addRandomPost(diagnose = null, isSpecial = false) {
+        const d = diagnose || diagnoses[Math.floor(Math.random() * diagnoses.length)];
+        const content = postsData[d][Math.floor(Math.random() * postsData[d].length)];
+        const randomLikes = Math.floor(Math.random() * 899) + 100;
+        feedPosts.push({ id: postIdCounter++, diagnose: d, content, isSpecial, randomLikes });
+      }
+
+      function initFeed() {
+        feedPosts = [];
+        for (let i = 0; i < maxPosts; i++) addRandomPost();
+        if (feedPosts.length > 0) {
+          feedPosts[Math.floor(Math.random() * feedPosts.length)].hasDescription = true;
+          feedPosts[Math.floor(Math.random() * feedPosts.length)].isEarlySpecial = true;
+        }
+        updateFeed();
+      }
+
+      function buildFocusFeed() {
+        focusMode = true;
+        const app = document.getElementById('app');
+        app.innerHTML = topBannerHTML(false, true, "Gedachten: \u201cIk wil meer zien. Het voelt als steun en herkenning.\u201d") + `<div id="feed"></div>`;
+        feedPosts = [];
+        window.scrollTo({ top: 0, behavior: 'auto' });
+        enableScrollTrigger(next);
+        let maxLikes = Math.max(...Object.values(diagnoseLikeCount));
+        let topDiagnoses = Object.keys(diagnoseLikeCount).filter(d => diagnoseLikeCount[d] === maxLikes);
+        const focusDiagnose = topDiagnoses[Math.floor(Math.random() * topDiagnoses.length)];
+        const specialIndex = 2;
+        for (let i = 0; i < maxPosts; i++) {
+          if (i === specialIndex) {
+            addRandomPost(focusDiagnose, true);
+          } else {
+            addRandomPost(focusDiagnose);
+          }
+        }
+        updateFeed();
+      }
+
+      function likePost(postId) {
+        const post = feedPosts.find(p => p.id === postId);
+        if (!post) return;
+        if (post.isSpecial) return;
+        if (likedPosts[postId]) return;
+        likedPosts[postId] = true;
+        totalLikes++;
+        diagnoseLikeCount[post.diagnose]++;
+      }
+
+      function rebuildFeed() {
+        feedPosts = [];
+        const likedDiagnoses = Object.keys(diagnoseLikeCount).filter(d => diagnoseLikeCount[d] > 0);
+        for (let i = 0; i < maxPosts; i++) {
+          if (likedDiagnoses.length > 0 && Math.random() < 0.7) {
+            const d = likedDiagnoses[Math.floor(Math.random() * likedDiagnoses.length)];
+            addRandomPost(d);
+          } else {
+            addRandomPost();
+          }
+        }
+        if (feedPosts.length > 0) {
+          feedPosts[Math.floor(Math.random() * feedPosts.length)].hasDescription = true;
+          feedPosts[Math.floor(Math.random() * feedPosts.length)].isEarlySpecial = true;
+        }
+        updateFeed();
+      }
+
+      function updateFeed() {
+        const feedDiv = document.getElementById('feed');
+        if (!feedDiv) return;
+        feedDiv.innerHTML = '';
+
+        feedPosts.forEach((post, index) => {
+          const rowContainer = document.createElement('div');
+          rowContainer.style.display = 'flex';
+          rowContainer.style.justifyContent = 'center';
+          rowContainer.style.alignItems = 'flex-end'; // aligns action buttons to bottom of post
+          rowContainer.style.margin = '30px auto';
+
+          const leftCol = document.createElement('div');
+          leftCol.style.display = 'flex';
+          leftCol.style.flexDirection = 'column';
+
+          const div = document.createElement('div');
+          div.className = 'post';
+          div.style.overflow = 'hidden';
+          div.style.border = 'none'; // Geen randje om de foto
+          div.style.borderRadius = '15px'; // Moderne Tiktok afrondingen
+          div.style.display = 'flex';
+          div.style.flexDirection = 'column';
+          div.style.justifyContent = 'center';
+          div.style.alignItems = 'center';
+          div.style.margin = '0'; // force margin to 0 here
+          div.innerHTML = `
+             <!-- [AANPASSEN] Afbeelding wordt nu per post gekozen uit de postsData lijst -->
+             <img src="${post.content}" onerror="this.src='https://via.placeholder.com/540x675?text=Afbeelding+Niet+Gevonden'" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index: 0;">
+          `;
+          leftCol.appendChild(div);
+
+          // Interactie knoppen (rechts buiten de post)
+          const interactCol = document.createElement('div');
+          interactCol.style.display = 'flex';
+          interactCol.style.flexDirection = 'column';
+          interactCol.style.alignItems = 'center';
+          interactCol.style.marginLeft = '20px'; // Space from post
+          interactCol.style.marginBottom = '20px';
+
+          const likeContainer = document.createElement('div');
+          likeContainer.style.width = '100px';
+          likeContainer.style.height = '100px';
+          likeContainer.style.backgroundColor = 'white'; // Ligther than whitesmoke
+          likeContainer.style.borderRadius = '50%';
+          likeContainer.style.display = 'flex';
+          likeContainer.style.marginBottom = '20px';
+          likeContainer.style.justifyContent = 'center';
+          likeContainer.style.alignItems = 'center';
+          likeContainer.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+
+          const likeImg = document.createElement('img');
+          likeImg.style.width = '80px';
+          likeImg.style.height = '80px';
+          likeImg.style.cursor = 'pointer';
+          likeImg.src = likedPosts[post.id] ? 'Like_button_clicked.png' : 'Like_button.png';
+
+          if (post.isSpecial || post.isEarlySpecial) {
+            likeImg.className = 'like-img-special';
+          }
+          likeContainer.appendChild(likeImg);
+
+          const likesText = document.createElement('div');
+          likesText.style.color = 'black';
+          likesText.style.fontSize = '21pt';
+          likesText.style.fontWeight = 'bold';
+          likesText.style.marginBottom = '300px';
+          likesText.textContent = (post.randomLikes || 100) + (likedPosts[post.id] ? 1 : 0);
+
+          interactCol.appendChild(likeContainer);
+          interactCol.appendChild(likesText);
+
+          if (post.isSpecial) {
+            likeImg.style.cursor = 'pointer';
+            likeImg.onclick = () => {
+              if (!likedPosts[post.id]) {
+                likedPosts[post.id] = true;
+                likeImg.src = 'Like_button_clicked.png';
+                likesText.textContent = (post.randomLikes || 100) + 1;
+
+                if (!foundFocusSpecial) {
+                  foundFocusSpecial = true;
+                  updateMeter(totalLikes, focusMode);
+                }
+
+                // Tekst laten verschijnen in de post
+                const overlayText = document.createElement('div');
+                overlayText.style.position = 'absolute';
+                overlayText.style.top = '70px';
+                overlayText.style.bottom = '110px';
+                overlayText.style.left = '20px';
+                overlayText.style.right = '20px';
+                overlayText.style.backgroundColor = 'transparent';
+                overlayText.style.color = 'white';
+                overlayText.style.padding = '10px';
+                overlayText.style.textAlign = 'center';
+                overlayText.style.display = 'flex';
+                overlayText.style.flexDirection = 'column';
+                overlayText.style.justifyContent = 'center';
+                // [AANPASSEN: Tekst & Stijl] Deze text komt tevoorschijn midden op de foto als je op 'Like' klikt bij de speciale post in focus mode
+                overlayText.innerHTML = `
+                  <h3 style="margin-bottom: 20px; font-size: 26pt;">De realiteit achter overmatig sociale media gebruik</h3>
+                  <!-- [AANPASSEN: Tekst als Afbeelding] Vervang bovenstaande h3 titel evt. door een afbeelding: -->
+                  <!-- <img src="interactie_titel.png" style="width: 100%; max-width: 300px; margin: 0 auto 20px auto;"> -->
+                  <p style="font-size: 18pt;">Overmatig gebruik van sociale media wordt in verband gebracht met concentratieproblemen, een lager zelfbeeld en depressieve gevoelens. (D3.7)</p>
+                  <p style="font-size: 18pt; margin-top: 20px;"><strong>Scroll verder naar beneden om door te gaan.</strong></p>
+                `;
+                div.appendChild(overlayText);
+
+              }
+            };
+          } else if (post.isEarlySpecial) {
+            likeImg.style.cursor = 'pointer';
+            likeImg.onclick = () => {
+              if (!likedPosts[post.id]) {
+                likedPosts[post.id] = true;
+                likeImg.src = 'Like_button_clicked.png';
+                likesText.textContent = (post.randomLikes || 100) + 1;
+
+                if (!foundEarlySpecial) {
+                  foundEarlySpecial = true;
+                  updateMeter(totalLikes, focusMode);
+                }
+
+                lastScroll = window.scrollY || document.documentElement.scrollTop;
+                setTimeout(() => {
+                  sceneSlideshow(() => {
+                    app.innerHTML = topBannerHTML(!focusMode, true, focusMode ? "Gedachten: \u201cIk wil meer zien. Het voelt als steun en herkenning.\u201d" : "Gedachten: \u201cIk voel me slecht\u2026 wat is er mis met mij?\u201d") + `<div id="feed"></div>`;
+                    updateFeed();
+                    setTimeout(() => window.scrollTo({ top: lastScroll, behavior: 'auto' }), 50);
+                  });
+                }, 200);
+              }
+            };
+          } else {
+            if (!focusMode) {
+              likeImg.style.cursor = 'pointer';
+              likeImg.onclick = () => {
+                if (likedPosts[post.id]) return;
+                likedPosts[post.id] = true;
+                totalLikes++;
+                diagnoseLikeCount[post.diagnose]++;
+                likeImg.src = 'Like_button_clicked.png';
+                likesText.textContent = (post.randomLikes || 100) + 1;
+
+                updateMeter(totalLikes, focusMode);
+
+                setTimeout(() => {
+                  if (totalLikes < 3) rebuildFeed();
+                  else buildFocusFeed();
+                }, 100);
+              };
+            }
+          }
+
+          rowContainer.appendChild(leftCol);
+          rowContainer.appendChild(interactCol);
+          feedDiv.appendChild(rowContainer);
+
+          // Beschrijving
+          if (post.hasDescription) {
+            const descDiv = document.createElement('div');
+            descDiv.className = 'description';
+            // [AANPASSEN: Tekst] De tekst van de doorklik-balk onder willekeurige berichten
+            descDiv.textContent = 'Klik hier voor meer informatie';
+            descDiv.onclick = () => {
+              if (!foundDesc) {
+                foundDesc = true;
+                updateMeter(totalLikes, focusMode);
+              }
+              // Herstel scrollpositie en ga naar beschrijving
+              lastScroll = window.scrollY || document.documentElement.scrollTop;
+              sceneBeschrijving(() => {
+                // Terug naar feed
+                app.innerHTML = topBannerHTML(!focusMode, true, focusMode ? "Gedachten: \u201cIk wil meer zien. Het voelt als steun en herkenning.\u201d" : "Gedachten: \u201cIk voel me slecht\u2026 wat is er mis met mij?\u201d") + `<div id="feed"></div>`;
+                updateFeed();
+                setTimeout(() => window.scrollTo({ top: lastScroll, behavior: 'auto' }), 50);
+              });
+            };
+            leftCol.appendChild(descDiv);
+          }
+        });
+      }
+
+      function enableScrollTrigger(next) {
+        let triggered = false;
+        window.onscroll = () => {
+          if (triggered) return;
+          const scrollTop = window.scrollY || document.documentElement.scrollTop;
+          const windowHeight = window.innerHeight;
+          const documentHeight = document.documentElement.scrollHeight;
+          if (scrollTop + windowHeight >= documentHeight - 5) {
+            triggered = true;
+            window.onscroll = null;
+            next();
+          }
+        };
+      }
+
+      // Init
+      initFeed();
+    }
+
+    // Beschrijving scene
+    function sceneBeschrijving(returnToFeed) {
+      const app = document.getElementById('app');
+      // [AANPASSEN: Tekst & HTML] Dit is het scherm dat volgt als je op de willekeurige 'meer informatie' balk in de feed drukt.
+      app.innerHTML = `
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; color: black; background-color: whitesmoke;">
+      <h2 style="margin-bottom: 20px;">De schaduwzijde van content over zelfbeschadiging of suïcide</h2>
+      <!-- [AANPASSEN: Tekst als Afbeelding] Vervang evt. h2 titel door afbeelding: -->
+      <!-- <img src="extra_informatie_titel.png" style="width: 100%; max-width: 400px; margin-bottom: 20px;"> -->
+      <p style="max-width: 600px; margin-bottom: 40px; line-height: 1.6;">Blootstelling aan content over zelfbeschadiging of suïcide kan gevoelens versterken, risicogedrag normaliseren en kwetsbare jongeren negatief beïnvloeden. (D4/D4.3)</p>
+      <div id="btnGelezen" style="display: flex; align-items: center; justify-content: center; width: 150px; height: 50px; background-color: #eee; color: black; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; background-image: url('https://via.placeholder.com/150x50?text=Knop'); background-size: cover; border: 1px solid #ccc; margin-top: 20px;">
+        Gelezen
+      </div>
+    </div>
+  `;
+      const btn = document.getElementById('btnGelezen');
+      if (btn) {
+        btn.onclick = () => {
+          // Ga terug naar feed
+          returnToFeed();
+        };
+      }
+    }
+
+    // Slideshow scene
+    function sceneSlideshow(returnToFeed) {
+      const app = document.getElementById('app');
+      // [AANPASSEN: Tekst & Afbeeldingen] Dit is de sleepbare slideshow. Voeg plaatjes of teksten toe in de respectievelijke '.slide' divs
+      app.innerHTML = `
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; color: black; background-color: whitesmoke;">
+      <h2 style="margin-bottom: 30px; padding: 0 20px;">De keerzijde van die mooie diagnose post</h2>
+      <!-- [AANPASSEN: Tekst als Afbeelding] Vervang evt. h2 titel door afbeelding: -->
+      <!-- <img src="slideshow_titel.png" style="width: 100%; max-width: 500px; margin-bottom: 30px;"> -->
+      <div class="slideshow-container" id="slideshowContainer">
+        <div class="slides-track" id="slidesTrack">
+          <!-- Slide 1 -->
+          <div class="slide" style="background-color: #333;">
+            <img src="https://via.placeholder.com/400x400?text=Plaats+hier+een+afbeelding" alt="Placeholder">
+          </div>
+          <!-- Slide 2 -->
+          <div class="slide" style="background-color: #222;">
+            <p style="font-size: 21pt; line-height: 1.5; padding: 0 40px;">Onjuiste of overdreven informatie over mentale gezondheid kan een vertekend beeld geven en aanzetten tot zelfdiagnose. (B3.2/D3.1)</p>
+          </div>
+        </div>
+      </div>
+      <!-- [AANPASSEN: Tekst] Knop om af te sluiten -->
+      <div id="btnGelezenSlideshow" style="display: flex; align-items: center; justify-content: center; width: 150px; height: 50px; background-color: #444; color: white; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 30px; background-image: url('https://via.placeholder.com/150x50?text=Plaats+hier+knopafbeelding'); background-size: cover;">
+        Gelezen
+      </div>
+    </div>
+  `;
+
+      const track = document.getElementById('slidesTrack');
+      let isDragging = false;
+      let startPos = 0;
+      let currentTranslate = 0;
+      let prevTranslate = 0;
+      let animationID = 0;
+      let currentIndex = 0;
+
+      track.addEventListener('mousedown', dragStart);
+      track.addEventListener('touchstart', dragStart, { passive: true });
+      track.addEventListener('mouseup', dragEnd);
+      track.addEventListener('mouseleave', dragEnd);
+      track.addEventListener('touchend', dragEnd);
+      track.addEventListener('mousemove', dragAction);
+      track.addEventListener('touchmove', dragAction, { passive: true });
+
+      function dragStart(event) {
+        isDragging = true;
+        startPos = getPositionX(event);
+        animationID = requestAnimationFrame(animation);
+        track.style.transition = 'none';
+      }
+
+      function dragAction(event) {
+        if (isDragging) {
+          const currentPosition = getPositionX(event);
+          currentTranslate = prevTranslate + currentPosition - startPos;
+        }
+      }
+
+      function dragEnd() {
+        isDragging = false;
+        cancelAnimationFrame(animationID);
+
+        const movedBy = currentTranslate - prevTranslate;
+
+        // Als 100px gesleept, ga naar volgende/vorige
+        if (movedBy < -100 && currentIndex < 1) currentIndex += 1;
+        if (movedBy > 100 && currentIndex > 0) currentIndex -= 1;
+
+        setPositionByIndex();
+        track.style.transition = 'transform 0.3s ease-out';
+      }
+
+      function getPositionX(event) {
+        return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
+      }
+
+      function animation() {
+        track.style.transform = `translateX(${currentTranslate}px)`;
+        if (isDragging) requestAnimationFrame(animation);
+      }
+
+      function setPositionByIndex() {
+        currentTranslate = currentIndex * -540;
+        prevTranslate = currentTranslate;
+        track.style.transform = `translateX(${currentTranslate}px)`;
+      }
+
+      const btn = document.getElementById('btnGelezenSlideshow');
+      if (btn) {
+        btn.onclick = () => {
+          returnToFeed();
+        };
+      }
+    }
+
+    // Start scene
+    function sceneStart(next) {
+      document.getElementById('meterUI').style.display = 'none'; // hide in start scene
+      const app = document.getElementById('app');
+      // [AANPASSEN: Startscherm met grote knoppen en Popups]
+      app.innerHTML = `
+        <div style="display: flex; width: 100vw; height: 100vh; position: relative; background-color: #000; overflow: hidden;">
+          <!-- Linker helft: Naar de dokter -->
+          <div id="btnDokter" style="flex: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+             <!-- [AANPASSEN: Afbeelding] Om commentaartags weg te halen: verwijder <!-- op begin en -> aan einde, en pas "URL_A" aan. -->
+             <img src="Test_Doktor.png" style="position: absolute; top: 0; left: 0; width:100%; height:100%; object-fit:cover; z-index: 0;">
+             <div style="position: absolute; font-size: 40px; font-weight: bold; color: black; text-align: center; padding: 20px; z-index: 1;">Naar de dokter gaan</div>
+          </div>
+          
+          <!-- Rechter helft: Naar sociale media -->
+          <div id="btnSocial" style="flex: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+             <!-- [AANPASSEN: Afbeelding] Verander "Test_Social.png" naar de naam van jouw afbeelding -->
+             <img src="Test_socialemedia.png" onerror="this.src='https://via.placeholder.com/800x800?text=Social+Media'" style="position: absolute; top: 0; left: 0; width:100%; height:100%; object-fit:cover; z-index: 0;">
+             <div style="position: absolute; font-size: 40px; font-weight: bold; color: #e7e3dd; text-align: center; padding: 20px; z-index: 1;">Naar sociale media gaan</div>
+          </div>
+
+          <!-- Gecentreerde tekst -->
+          <div style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 450px; display: flex; flex-direction: column; justify-content: space-around; align-items: center; text-align: center; pointer-events: none; color: black; background: none; text-shadow: 0px 0px 8px rgba(255,255,255,1), 0px 0px 15px rgba(255,255,255,0.8), 2px 2px 5px rgba(255,255,255,1); padding: 40px 10px;">
+             <!-- [AANPASSEN: Tekst] De grootte kan je hier in font-size aapassen -->
+             <div style="font-weight: bold; font-size: 72px; text-transform: uppercase;">Begin verhaal hier</div>
+             <div style="font-size: 52px; font-style: italic;">of</div>
+             <div style="font-weight: bold; font-size: 36px;">Blijf kritisch kijken<br/>naar wat je ziet,<br/>ook in dit verhaal.</div>
+             <!-- [AANPASSEN: Tekst als Afbeelding] Wil je een eigen tekst-afbeelding gebruiken? Verwijder/verberg dan de <div> regels hierboven, en haal hieronder de commentaartekens weg: -->
+             <!-- <img src="Jouw_Eigen_Start_Tekst.png" alt="Start tekst" style="width: 100%; max-width: 450px; height: auto;"> -->
+          </div>
+
+          <!-- Popup Dokter -->
+          <div id="popupDokter" style="display: none; position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; background-color: whitesmoke; color: black; z-index: 100; border-radius: 10px; box-sizing: border-box; box-shadow: 0 0 20px rgba(0,0,0,0.5); overflow: hidden;">
+             <div style="display: flex; width: 100%; height: 100%;">
+                <div style="width: 75%; padding: 80px 100px; position: relative; display: flex; flex-direction: column; justify-content: center; text-align: center; box-sizing: border-box;">
+                   <div id="closePopup" style="position: absolute; top: -5px; left: 0px; padding: 20px; font-size: 40px; cursor: pointer; font-weight: bold; z-index: 10;">&times;</div>
+                   <!-- [AANPASSEN: Tekst Dokter Popup] Wijzig de H2 titel en P paragraaf -->
+                   <h2 style="margin-top: 20px;">Offline drempels, online gevolgen</h2>
+                   <h3 style="margin-top: 0px; margin-bottom: 20px; font-weight: normal; font-size: 21pt;">Geen afspraak mogelijk voor een diagnose</h3>
+                   <!-- [AANPASSEN: Tekst als Afbeelding] Vervang evt. h2 door afbeelding: -->
+                   <!-- <img src="dokter_titel.png" style="width: 100%; max-width: 400px; margin-top: 20px; margin-bottom: 10px;"> -->
+                   <p style="line-height: 1.6;">Veel jongeren ervaren drempels bij hulp, zoals wachttijden, kosten of beperkte toegang. TikTok kan herkenning bieden. Zelfdiagnose geeft soms duidelijkheid en gemeenschap, maar vervangt geen professionele hulp. Professionals blijven de meest betrouwbare bron. (B8)</p>
+                </div>
+                <div style="width: 25%; box-sizing: border-box;">
+                   <!-- [AANPASSEN: Afbeelding Dokter Popup] Plaats in de popup een staande foto door de src hieronder aan te passen -->
+                   <img src="https://via.placeholder.com/300x800?text=Plaats+hier+je+afbeelding" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+             </div>
+          </div>
+        </div>
+
+        <!-- [AANPASSEN: Logo Startscherm] Klein Mislabel logo onderaan, gecentreerd -->
+        <!-- <img src="Mislabel_Logo_Klein.png" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 150px; z-index: 100; opacity: 0.8;" alt="Mislabel Logo"> -->
+      `;
+
+      document.getElementById('btnDokter').onclick = () => {
+        document.getElementById('popupDokter').style.display = 'block';
+        if (!foundDokter) {
+          foundDokter = true;
+          updateMeter(0, false);
+        }
+      };
+
+      document.getElementById('closePopup').onclick = () => {
+        document.getElementById('popupDokter').style.display = 'none';
+      };
+
+      document.getElementById('btnSocial').onclick = () => {
+        next();
+      };
+    }
+
+    // Branching router & Scenes
+    function outcomeRouter() {
+      // Bepaal de uitkomst en roep de bijbehorende popup (Scene 1) aan
+      if (getNegativeEventsCount() >= 3) {
+        sceneOutcomeTwoPopup();
+      } else {
+        sceneOutcomeOnePopup();
+      }
+    }
+
+    // --- UITKOMST 1 (0, 1, of 2 negatieve patronen gevonden) ---
+    // [AANPASSEN: Uitkomst 1 Pop-up] Hier pas je de eerste reactie aan als de gebruiker met stroom meeging.
+    function sceneOutcomeOnePopup() {
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div style="position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:2000;">
+          <div style="position: relative; width: 80%; height: 80%; border-radius: 10px; overflow: hidden; background-color: #222; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+            <!-- Full height popup background image -->
+            <img src="https://via.placeholder.com/800x600?text=Achtergrond+Afbeelding" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity: 0.3; z-index: 1;">
+            
+            <div id="closeOutcomePopup" style="position: absolute; top: -5px; right: 0px; padding: 20px; font-size: 40px; cursor: pointer; font-weight: bold; color: white; z-index: 10;">&times;</div>
+            
+            <div style="position: relative; z-index: 2; padding: 60px; text-align: center; color: white; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+              <h2 style="font-size: 50pt; margin-bottom: 30px;">Uitkomst 1</h2>
+              <p style="font-size: 26pt; line-height: 1.6;">“Dit is het… dit verklaart alles.”</p>
+              <!-- [AANPASSEN: Tekst als Afbeelding] Optioneel alternatief voor de tekst hierboven: -->
+              <!-- <img src="Uitkomst1_Tekst.png" style="width: 100%; max-width: 700px; margin: 0 auto;"> -->
+            </div>
+          </div>
+        </div>
+      `;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+
+      document.getElementById('closeOutcomePopup').onclick = () => {
+        sceneOutcomeOnePointTwo(); // Naar Scene 2
+      };
+    }
+
+    function sceneOutcomeOnePointTwo() {
+      const app = document.getElementById('app');
+      app.innerHTML = topBannerHTML(false, false, "Gedachten: \u201cIk herken alles. Misschien heb ik dit ook.\u201d") + `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 372px); text-align:center; color: black;">
+          <h2 style="margin-bottom: 20px;">Resultaat: Tunnelvisie</h2>
+          <p style="max-width: 800px; margin-bottom: 50px;"><strong>Melding:</strong> Diagnoseer jezelf niet alleen via sociale media. Bekijk ook andere betrouwbare bronnen voordat je professionele hulp zoekt.</p>
+          <!-- [AANPASSEN: Tekst als Afbeelding] Optioneel alternatief voor de h2 en p hierboven: -->
+          <!-- <img src="Tunnelvisie_Tekst.png" style="width: 100%; max-width: 800px; margin-bottom: 50px;"> -->
+          <div id="btnNext1" style="display: flex; align-items: center; justify-content: center; width: 450px; height: 100px; background-color: #333; color: white; border-radius: 5px; font-size: 24px; font-weight: bold; cursor: pointer; margin: 0 auto; background-image: url('https://via.placeholder.com/450x100?text=Plaats+hier+knopafbeelding'); background-size: cover;">
+            Sluit sociale media
+          </div>
+        </div>
+      `;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      document.getElementById('btnNext1').onclick = sceneFinal;
+    }
+
+    // --- UITKOMST 2 (3 of 4 negatieve patronen gevonden) ---
+    function sceneOutcomeTwoPopup() {
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div style="position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:2000;">
+          <div style="position: relative; width: 80%; height: 80%; border-radius: 10px; overflow: hidden; background-color: #222; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+            <!-- Full height popup background image -->
+            <img src="https://via.placeholder.com/800x600?text=Achtergrond+Afbeelding" style="position: absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity: 0.3; z-index: 1;">
+            
+            <div id="closeOutcomePopup2" style="position: absolute; top: -5px; right: 0px; padding: 20px; font-size: 40px; cursor: pointer; font-weight: bold; color: dodgerblue; z-index: 10;">&times;</div>
+            
+            <div style="position: relative; z-index: 2; padding: 60px; text-align: center; color: dodgerblue; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+              <h2 style="font-size: 50pt; margin-bottom: 30px;">Uitkomst 2</h2>
+              <p style="font-size: 26pt; line-height: 1.6;">“Het helpt me begrijpen hoe ik me voel.”</p>
+              <!-- [AANPASSEN: Tekst als Afbeelding] Optioneel alternatief voor de tekst hierboven: -->
+              <!-- <img src="Uitkomst2_Tekst.png" style="width: 100%; max-width: 700px; margin: 0 auto;"> -->
+            </div>
+          </div>
+        </div>
+      `;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+
+      document.getElementById('closeOutcomePopup2').onclick = () => {
+        sceneOutcomeTwoPointTwo(); // Naar Scene 2
+      };
+    }
+
+    function sceneOutcomeTwoPointTwo() {
+      const app = document.getElementById('app');
+      app.innerHTML = topBannerHTML(false, false, "Gedachten: \u201cIk herken mezelf hierin, maar het definieert me niet.\u201d") + `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 372px); text-align:center; color: black;">
+          <h2 style="margin-bottom: 20px;">Resultaat: Vrije keuze</h2>
+          <p style="max-width: 800px; margin-bottom: 50px;"><strong>Melding:</strong> Diagnoseer jezelf niet alleen via sociale media. Bekijk ook andere betrouwbare bronnen voordat je professionele hulp zoekt.</p>
+          <!-- [AANPASSEN: Tekst als Afbeelding] Optioneel alternatief voor de h2 en p hierboven: -->
+          <!-- <img src="VrijeKeuze_Tekst.png" style="width: 100%; max-width: 800px; margin-bottom: 50px;"> -->
+          <div id="btnNext2" style="display: flex; align-items: center; justify-content: center; width: 450px; height: 100px; background-color: dodgerblue; color: white; border-radius: 5px; font-size: 24px; font-weight: bold; cursor: pointer; margin: 0 auto; background-image: url('https://via.placeholder.com/450x100?text=Plaats+hier+knopafbeelding'); background-size: cover;">
+            Sluit sociale media
+          </div>
+        </div>
+      `;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      document.getElementById('btnNext2').onclick = sceneFinal;
+    }
+
+    // Einde
+    // [AANPASSEN: Eind Scherm] Iedereen komt hier samen. Je kan de teksten hier tweaken.
+    function sceneFinal() {
+      const app = document.getElementById('app');
+      document.getElementById('meterUI').style.display = 'none'; // Veiligheid
+      app.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; color: black; background-color: whitesmoke; padding: 60px;">
+          <!-- [AANPASSEN: Logo Eindscherm] Groot Mislabel logo helemaal bovenaan -->
+          <!-- <img src="Mislabel_Logo_Groot.png" style="width: 100%; max-width: 600px; margin-bottom: 50px;" alt="Mislabel Logo"> -->
+          
+          <h1 style="margin-bottom: 20px;">Vermoeden of echte diagnose?</h1>
+          <h2 style="margin-top: 0; margin-bottom: 40px; font-weight: normal;">Zelfdiagnose via sociale media ≠ klinische diagnose</h2>
+          <p style="margin-bottom: 60px;">Klik op een knop om verder te gaan.</p>
+          <!-- [AANPASSEN: Tekst als Afbeelding] Optioneel: gooi de teksten (h1, h2, p) hierboven weg, en laad je eigen grafische afbeelding hiervoor in: -->
+          <!-- <img src="Eindscherm_Titel_Tekst.png" style="width: 100%; max-width: 800px; margin-bottom: 60px;"> -->
+          
+          <a href="#" style="text-decoration: none;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 700px; height: 120px; background-color: #333; color: white; border-radius: 10px; font-size: 26px; font-weight: bold; cursor: pointer; background-image: url('https://via.placeholder.com/700x120?text=Knop+1'); background-size: cover; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">
+              Dit is een vermoeden, geen zelfdiagnose.
+            </div>
+          </a>
+          
+          <div style="font-size: 36px; font-weight: bold; margin: 30px 0;">of</div>
+          
+          <a href="#" style="text-decoration: none;">
+            <div style="display: flex; align-items: center; justify-content: center; width: 700px; height: 120px; background-color: white; color: black; border: 3px solid black; border-radius: 10px; font-size: 26px; font-weight: bold; cursor: pointer; background-image: url('https://via.placeholder.com/700x120?text=Knop+2'); background-size: cover; text-shadow: 1px 1px 2px white;">
+              Professionele hulp zoeken
+            </div>
+          </a>
+        </div>
+      `;
+    }
+    const scenes = [sceneStart, sceneFeed, outcomeRouter];
+    let currentScene = 0;
+    function nextScene() {
+      currentScene++;
+      if (currentScene < scenes.length) scenes[currentScene](nextScene);
+    }
+
+    // Start
+    scenes[0](nextScene);
+  </script>
+</body>
+
+</html>
